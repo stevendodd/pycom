@@ -15,9 +15,9 @@ class SquelchStatus(Enum):
     OPEN   = 1
 
 class PyCom:
-    def __init__(self, debug: bool = False):
-        self._ser = serial.Serial('COM6')
-        self._ser.baudrate = 115200
+    def __init__(self, debug: bool = False, port: str = "COM6", baud: int = 115200):
+        self._ser = serial.Serial(port)
+        self._ser.baudrate = baud
         self._debug = debug
         if self._debug:
             print(self._ser.name)
