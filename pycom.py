@@ -16,7 +16,8 @@ class SquelchStatus(Enum):
 
 class PyCom:
     def __init__(self, debug: bool = False):
-        self._ser = serial.Serial('/dev/ttyUSB0')
+        self._ser = serial.Serial('COM6')
+        self._ser.baudrate = 115200
         self._debug = debug
         if self._debug:
             print(self._ser.name)
@@ -24,7 +25,7 @@ class PyCom:
 
     def _send_command(self, command, data=b'', preamble=b'') -> Tuple[int, int, bytes]:
 
-        self._ser.write(preamble + b'\xfe\xfe\x92\xe0' + command + data + b'\xfd')
+        self._ser.write(preamble + b'\xfe\xfe\xa2\xe0' + command + data + b'\xfd')
 
         # Our cable reads what we send, so we have to remove this from the buffer first
         self._ser.read_until(expected=b'\xfd')
@@ -40,6 +41,8 @@ class PyCom:
             wakeup_preamble_count = 27
         elif self._ser.baudrate == 9600:
             wakeup_preamble_count = 14
+        elif self._ser.baudrate == 115200:
+            wakeup_preamble_count = 119
 
         self._send_command(b'\x18\x01', preamble=b'\xfe' * wakeup_preamble_count)
 
