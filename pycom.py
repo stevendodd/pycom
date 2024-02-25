@@ -14,6 +14,18 @@ class SquelchStatus(Enum):
     CLOSED = 0
     OPEN   = 1
 
+class PowerOffSetting(Enum):
+    SHUTDOWN_ONLY = 0
+    STANDBY_SHUTDOWN   = 1
+
+class DataMods(Enum):
+    MIC = 0
+    ACC = 1
+    MIC_ACC = 2
+    USB = 3
+    MIC_USB = 4
+    LAN = 5
+
 class PyCom:
     def __init__(self, debug: bool = False, port: str = "COM6", baud: int = 115200):
         self._ser = serial.Serial(port)
@@ -36,18 +48,37 @@ class PyCom:
         return reply
 
     def power_on(self):
-        wakeup_preamble_count = 8
-        if self._ser.baudrate == 19200:
-            wakeup_preamble_count = 27
+        wakeup_preamble_count = 2
+        if self._ser.baudrate == 4800:
+            wakeup_preamble_count = 5
         elif self._ser.baudrate == 9600:
-            wakeup_preamble_count = 14
+            wakeup_preamble_count = 9
+        elif self._ser.baudrate == 19200:
+            wakeup_preamble_count = 20
+        elif self._ser.baudrate == 38400:
+            wakeup_preamble_count = 40
+        elif self._ser.baudrate == 57600:
+            wakeup_preamble_count = 59
         elif self._ser.baudrate == 115200:
             wakeup_preamble_count = 119
 
         self._send_command(b'\x18\x01', preamble=b'\xfe' * wakeup_preamble_count)
 
+
     def power_off(self):
         self._send_command(b'\x18\x00')
+        
+    def send_data_mod(self, data_mod: int):
+        reply = self._send_command(b'\x1a\x05\x01\x16', data_mod.to_bytes())
+        return(reply)
+    
+    def read_data_mod(self):
+        reply = self._send_command(b'\x1a\x05\x01\x16')
+        return(DataMods(int.from_bytes(reply[8:9])))
+        
+    def read_power_off_setting(self):
+        reply = self._send_command(b'\x1a\x05\x01\x46')
+        return(PowerOffSetting(int.from_bytes(reply[8:9])))
 
     def read_transceiver_id(self):
         reply = self._send_command(b'\x19\x00')
