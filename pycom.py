@@ -6,13 +6,10 @@ from collections import namedtuple
 from collections.abc import Callable
 import serial
 
+
 class OperatingMode(Enum):
     AM   = 0
     AM_N = 1
-
-class SquelchStatus(Enum):
-    CLOSED = 0
-    OPEN   = 1
 
 class PowerOffSetting(Enum):
     SHUTDOWN_ONLY = 0
@@ -25,6 +22,7 @@ class DataMods(Enum):
     USB = 3
     MIC_USB = 4
     LAN = 5
+
 
 class PyCom:
     def __init__(self, debug: bool = False, port: str = "COM6", baud: int = 115200):
@@ -44,8 +42,17 @@ class PyCom:
 
         # Now we are reading replies
         reply = self._ser.read_until(expected=b'\xfd')
-
         return reply
+        
+    def _bcd_to_percentage(self,b):
+        #print(b.hex())
+        #print(int(b.hex())/255*100)
+        return(round(int(b.hex())/255*100))
+        
+    def _percentage_to_bcd(self,p):
+        #print(round(p/100*255))
+        percentage = '00' + str(round(p/100*255))
+        return(bytes([int(percentage[-3], 16),int(percentage[-2] + percentage[-1], 16)]))
 
     def power_on(self):
         wakeup_preamble_count = 2
@@ -92,18 +99,22 @@ class PyCom:
         reply = self._send_command(b'\x04')
         return reply
 
-    def send_operating_frequency(self, frequency: float):
-        reply = self._send_command(b'\x03')
+    def read_af_output_level(self):
+        reply = self._send_command(b'\x1a\x05\x01\x06')
+        #print(reply)
+        #print(reply[8:-1])
+        return self._bcd_to_percentage(reply[8:-1])
+        
+    def send_af_output_level(self,p: int):
+        reply = self._send_command(b'\x1a\x05\x01\x06' + self._percentage_to_bcd(p))
         return reply
-    
-    def read_operating_mode(self):
-        reply = self._send_command(b'\x04')
-        return reply
+        
+    def read_usb_mod_level(self):
+        reply = self._send_command(b'\x1a\x05\x01\x13')
+        #print(reply)
+        #print(reply[8:-1])    
+        return self._bcd_to_percentage(reply[8:-1])
 
-    def read_squelch_status(self):
-        reply = self._send_command(b'\x15\x01')
-        return reply
-
-    def read_squelch_status2(self):
-        reply = self._send_command(b'\x15\x05')
+    def send_usb_mod_level(self,p: int):
+        reply = self._send_command(b'\x1a\x05\x01\x13' + self._percentage_to_bcd(p))
         return reply
