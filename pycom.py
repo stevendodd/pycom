@@ -7,15 +7,32 @@ from collections.abc import Callable
 import serial
 
 
+class DataMode(Enum):
+    OFF = 0
+    ON = 1
+    
 class OperatingMode(Enum):
-    AM   = 0
-    AM_N = 1
+    LSB = 0
+    USB = 1
+    AM = 2
+    CW = 3
+    RTTY = 4
+    FM = 5
+    CW_R = 7
+    RTTY_R = 8
+    DV = 17
+    DD = 22
+
+class Filter(Enum):
+    FIL1 = 1
+    FIL2 = 2
+    FIL3 = 3
 
 class PowerOffSetting(Enum):
     SHUTDOWN_ONLY = 0
     STANDBY_SHUTDOWN   = 1
 
-class DataMods(Enum):
+class ModInput_DataMod(Enum):
     MIC = 0
     ACC = 1
     MIC_ACC = 2
@@ -81,7 +98,7 @@ class PyCom:
     
     def read_data_mod(self):
         reply = self._send_command(b'\x1a\x05\x01\x16')
-        return(DataMods(int.from_bytes(reply[8:9])))
+        return(ModInput_DataMod(int.from_bytes(reply[8:9])))
         
     def read_power_off_setting(self):
         reply = self._send_command(b'\x1a\x05\x01\x46')
@@ -89,15 +106,26 @@ class PyCom:
 
     def read_transceiver_id(self):
         reply = self._send_command(b'\x19\x00')
-        return reply
+        return reply[6:-1].hex()
 
-    def read_operating_frequency(self):
-        reply = self._send_command(b'\x03')
-        return reply
+    def send_data_mode(self, data_mode: int):
+        reply = self._send_command(b'\x1a\x06', data_mode.to_bytes())
+        return(reply)
+
+    def read_data_mode(self):
+        reply = self._send_command(b'\x1a\x06')
+        if DataMode(int.from_bytes(reply[6:7])).name == "OFF":
+            return(DataMode(int.from_bytes(reply[6:7])).name,)
+        else:
+            return(DataMode(int.from_bytes(reply[6:7])).name,Filter(int.from_bytes(reply[7:8])).name)
+
+    def send_operating_mode(self, opMode: int):
+        reply = self._send_command(b'\x06', opMode.to_bytes())
+        return(reply)
     
     def read_operating_mode(self):
         reply = self._send_command(b'\x04')
-        return reply
+        return(OperatingMode(int.from_bytes(reply[5:6])).name,Filter(int.from_bytes(reply[6:7])).name)
 
     def read_af_output_level(self):
         reply = self._send_command(b'\x1a\x05\x01\x06')
@@ -117,4 +145,8 @@ class PyCom:
 
     def send_usb_mod_level(self,p: int):
         reply = self._send_command(b'\x1a\x05\x01\x13' + self._percentage_to_bcd(p))
+        return reply
+       
+    def read_operating_frequency(self):
+        reply = self._send_command(b'\x03')
         return reply

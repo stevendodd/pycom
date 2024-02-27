@@ -4,6 +4,7 @@ Python library for communicating with iCOM radios using CI-V. Modified for ic-97
 ```
 C:\pycom>python main.py -h
 usage: main.py [-h] [-p PORT] [-b {4800,9600,19200,38400,57600,115200}] [-x {on,off}]
+               [--opMode {LSB,USB,AM,CW,RTTY,FM,CW_R,RTTY_R,DV,DD}] [--dataMode {OFF,ON}]
                [--modInputDataMod {MIC,ACC,MIC_ACC,USB,MIC_USB,LAN}] [--usbAfOutputLevel (1..100)]
                [--usbModLevel (1..100)]
 
@@ -14,6 +15,9 @@ options:
                         Baudrate
   -x {on,off}, --power {on,off}
                         Power On/Off
+  --opMode {LSB,USB,AM,CW,RTTY,FM,CW_R,RTTY_R,DV,DD}
+                        SET > Operating Mode
+  --dataMode {OFF,ON}   SET > Data Mode
   --modInputDataMod {MIC,ACC,MIC_ACC,USB,MIC_USB,LAN}
                         SET > Connectors > MOD Input > DATA MOD
   --usbAfOutputLevel (1..100)
