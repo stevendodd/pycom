@@ -7,6 +7,12 @@ from collections.abc import Callable
 import serial
 
 
+class Split_DupMode(Enum):
+    OFF = 0
+    SPLIT_ON = 1
+    DUP_MINUS = 17
+    DUP_PLUS = 18
+
 class DataMode(Enum):
     OFF = 0
     ON = 1
@@ -118,6 +124,17 @@ class PyCom:
             return(DataMode(int.from_bytes(reply[6:7])).name,)
         else:
             return(DataMode(int.from_bytes(reply[6:7])).name,Filter(int.from_bytes(reply[7:8])).name)
+
+    def send_split_mode(self, split_mode: int):
+        reply = self._send_command(b'\x0f', split_mode.to_bytes())
+        if split_mode == 0:
+            # Also turn off DUP
+            reply = self._send_command(b'\x0f', int(16).to_bytes())
+        return(reply)
+
+    def read_split_mode(self):
+        reply = self._send_command(b'\x0f')
+        return(Split_DupMode(int.from_bytes(reply[5:6])))
 
     def send_operating_mode(self, opMode: int):
         reply = self._send_command(b'\x06', opMode.to_bytes())
