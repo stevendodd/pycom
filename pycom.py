@@ -7,13 +7,26 @@ from collections.abc import Callable
 import serial
 
 
+class PreAmp(Enum):
+    PAMP_OFF_EXT_OFF = 0
+    PAMP_ON_EXT_OFF = 1
+    PAMP_OFF_EXT_ON = 2
+    PAMP_ON_EXT_ON = 3
+
+class USB_Send(Enum):
+    OFF = 0
+    USB_A_DTR = 1
+    USB_A_RTS = 2
+    USB_B_DTR = 3
+    USB_B_RTS = 4
+
 class Split_DupMode(Enum):
     OFF = 0
     SPLIT_ON = 1
     DUP_MINUS = 17
     DUP_PLUS = 18
 
-class DataMode(Enum):
+class OffOn(Enum):
     OFF = 0
     ON = 1
     
@@ -48,9 +61,12 @@ class ModInput_DataMod(Enum):
 
 
 class PyCom:
-    def __init__(self, debug: bool = False, port: str = "COM6", baud: int = 115200):
+
+    def __init__(self, debug: bool = False, port: str = "COM6", baud: int = 115200, transceiver_id: str = "A2"):
         self._ser = serial.Serial(port)
         self._ser.baudrate = baud
+        self._transceiver_id = int(transceiver_id, 16).to_bytes()
+
         self._debug = debug
         if self._debug:
             print(self._ser.name)
@@ -58,7 +74,7 @@ class PyCom:
 
     def _send_command(self, command, data=b'', preamble=b'') -> Tuple[int, int, bytes]:
 
-        self._ser.write(preamble + b'\xfe\xfe\xa2\xe0' + command + data + b'\xfd')
+        self._ser.write(preamble + b'\xfe\xfe' + self._transceiver_id + b'\xe0' + command + data + b'\xfd')
 
         # Our cable reads what we send, so we have to remove this from the buffer first
         self._ser.read_until(expected=b'\xfd')
@@ -109,6 +125,14 @@ class PyCom:
     def read_power_off_setting(self):
         reply = self._send_command(b'\x1a\x05\x01\x46')
         return(PowerOffSetting(int.from_bytes(reply[8:9])))
+        
+    def read_usb_send(self):
+        reply = self._send_command(b'\x1a\x05\x01\x20')
+        return(USB_Send(int.from_bytes(reply[8:9])))
+
+    def send_command(self, b):
+        reply = self._send_command(b)
+        return reply
 
     def read_transceiver_id(self):
         reply = self._send_command(b'\x19\x00')
@@ -120,10 +144,10 @@ class PyCom:
 
     def read_data_mode(self):
         reply = self._send_command(b'\x1a\x06')
-        if DataMode(int.from_bytes(reply[6:7])).name == "OFF":
-            return(DataMode(int.from_bytes(reply[6:7])).name,)
+        if OffOn(int.from_bytes(reply[6:7])).name == "OFF":
+            return(OffOn(int.from_bytes(reply[6:7])).name,)
         else:
-            return(DataMode(int.from_bytes(reply[6:7])).name,Filter(int.from_bytes(reply[7:8])).name)
+            return(OffOn(int.from_bytes(reply[6:7])).name,Filter(int.from_bytes(reply[7:8])).name)
 
     def send_split_mode(self, split_mode: int):
         reply = self._send_command(b'\x0f', split_mode.to_bytes())
@@ -167,3 +191,70 @@ class PyCom:
     def read_operating_frequency(self):
         reply = self._send_command(b'\x03')
         return reply
+
+    def read_preamp(self):         
+        reply = self._send_command(b'\x16\x02')
+        return(PreAmp(int.from_bytes(reply[6:7])))
+        
+    def send_preamp(self, preamp: str, status: int):
+        reply = None
+        
+        cur = self.read_preamp()
+        internal = external = "Off"
+        if cur == PreAmp.PAMP_ON_EXT_OFF or cur == PreAmp.PAMP_ON_EXT_ON:
+            internal = "On"
+        if cur == PreAmp.PAMP_ON_EXT_ON or cur == PreAmp.PAMP_OFF_EXT_ON:
+            external = "On"
+            
+        if status == 0:
+            if preamp == "Internal":
+                if external == "Off":
+                    #print(PreAmp.PAMP_OFF_EXT_OFF)
+                    reply = self._send_command(b'\x16\x02' + PreAmp.PAMP_OFF_EXT_OFF.value.to_bytes())
+                elif external == "On":
+                    #print(PreAmp.PAMP_OFF_EXT_ON)
+                    reply = self._send_command(b'\x16\x02' + PreAmp.PAMP_OFF_EXT_ON.value.to_bytes())
+            elif preamp == "External":
+                if internal == "Off":
+                    #print(PreAmp.PAMP_OFF_EXT_OFF)
+                    reply = self._send_command(b'\x16\x02' + PreAmp.PAMP_OFF_EXT_OFF.value.to_bytes())
+                elif internal == "On":
+                    #print(PreAmp.PAMP_ON_EXT_OFF)
+                    reply = self._send_command(b'\x16\x02' + PreAmp.PAMP_ON_EXT_OFF.value.to_bytes())
+        elif status == 1:
+            if preamp == "Internal":
+                if external == "Off":
+                    #print(PreAmp.PAMP_ON_EXT_OFF)
+                    reply = self._send_command(b'\x16\x02' + PreAmp.PAMP_ON_EXT_OFF.value.to_bytes())
+                elif external == "On":
+                    #print(PreAmp.PAMP_ON_EXT_ON)
+                    reply = self._send_command(b'\x16\x02' + PreAmp.PAMP_ON_EXT_ON.value.to_bytes())
+            elif preamp == "External":
+                if internal == "Off":
+                    #print(PreAmp.PAMP_OFF_EXT_ON)
+                    reply = self._send_command(b'\x16\x02' + PreAmp.PAMP_OFF_EXT_ON.value.to_bytes())
+                elif internal == "On":
+                    #print(PreAmp.PAMP_ON_EXT_ON)
+                    reply = self._send_command(b'\x16\x02' + PreAmp.PAMP_ON_EXT_ON.value.to_bytes())
+        return(reply)
+
+    def _get_preamp_band_command(self, band: int):
+        com = None
+        if band == 144:
+            com = b'\x1a\x05\x00\x93'
+        elif band == 430:
+            com = b'\x1a\x05\x00\x94'
+        elif band == 1200:
+            com = b'\x1a\x05\x00\x95'
+        else:
+            print("Invalid preamp band")
+            exit(1)            
+        return(com)
+        
+    def read_external_preamp(self, band: int):         
+        reply = self._send_command(self._get_preamp_band_command(band))
+        return(OffOn(int.from_bytes(reply[8:9])))
+        
+    def send_external_preamp(self, band: int, preamp: int):
+        reply = self._send_command(self._get_preamp_band_command(band), preamp.to_bytes())
+        return(reply)
