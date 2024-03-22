@@ -149,6 +149,42 @@ class PyCom:
         else:
             return(OffOn(int.from_bytes(reply[6:7])).name,Filter(int.from_bytes(reply[7:8])).name)
 
+    def send_otherVfoMode(self, op_mode: int, data_mode: int):
+        #print(b''.join([op_mode.to_bytes(),data_mode.to_bytes()]))
+        reply = self._send_command(b'\x26\x01', b''.join([op_mode.to_bytes(),data_mode.to_bytes()]))
+        return(reply)
+
+    def send_vfo(self, vfo: str):
+        reply = None
+        if vfo == "A":
+            reply = self._send_command(b'\x07\x00')
+        else:
+            reply = self._send_command(b'\x07\x01')
+        return(reply)
+
+    def send_satellite_band(self, band: str):
+        reply = None
+        if band == "MAIN":
+            reply = self._send_command(b'\x07\xd2\x00')
+        else:
+            reply = self._send_command(b'\x07\xd2\x01')
+        return(reply)
+    
+    def send_satellite_mode(self, sat_mode: int):
+        reply = self._send_command(b'\x16\x5a', sat_mode.to_bytes())
+        return(reply)
+
+    def read_satellite_mode(self):
+        reply = self._send_command(b'\x16\x5a')
+        if OffOn(int.from_bytes(reply[6:7])).name == "OFF":
+            return(OffOn(int.from_bytes(reply[6:7])).name,)
+        else:
+            reply = self._send_command(b'\x07\xd2')
+            if int.from_bytes(reply[6:7]):
+                return("ON","SUB Band Selected")
+            else:
+                return("ON","MAIN Band Selected")
+        
     def send_split_mode(self, split_mode: int):
         reply = self._send_command(b'\x0f', split_mode.to_bytes())
         if split_mode == 0:
