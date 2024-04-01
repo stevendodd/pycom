@@ -7,6 +7,7 @@ dataMods = list(pycom.ModInput_DataMod.__members__)
 opMode = list(pycom.OperatingMode.__members__)
 offOn = list(pycom.OffOn.__members__)
 sdMode = list(pycom.Split_DupMode.__members__)
+tone = list(pycom.Tone.__members__)
 
 class ValidateOtherVfoMode(argparse.Action):
     def __call__(self, parser, args, values, option_string=None):
@@ -21,7 +22,7 @@ class ValidateOtherVfoMode(argparse.Action):
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-p", '--port', type=str, default='COM6', help="Serial Port")
-parser.add_argument("-b", '--baud', type=int, choices=['4800','9600','19200','38400','57600','115200'], default='115200', help="Baudrate")
+parser.add_argument("-b", '--baud', type=int, choices=[4800,9600,19200,38400,57600,115200], default='115200', help="Baudrate")
 parser.add_argument("-x", "--power", choices=offOn, help="Power On/Off")
 parser.add_argument("--vfo", type=str, choices=["A","B"], help="Select VFO Mode and VFO")
 parser.add_argument("--split", type=str, choices=sdMode, help="SET > Split/DUP")
@@ -29,6 +30,8 @@ parser.add_argument("--satMode", type=str, choices=offOn, help="SET > Satellite 
 parser.add_argument("--satBand", type=str, choices=["MAIN","SUB"], help="SET > Satellite Mode and Select Band")
 parser.add_argument("--opMode", type=str, choices=opMode, help="SET > Operating Mode")
 parser.add_argument("--dataMode", type=str, choices=offOn, help="SET > Data Mode")
+parser.add_argument("--tone", type=str, choices=tone, help="SET > Tone")
+parser.add_argument("--toneFrequency", type=float, choices=pycom.TONE_FREQUENCIES, help="SET > Tone Frequency")
 parser.add_argument("--otherVfoMode", type=str, nargs=2, action=ValidateOtherVfoMode, metavar=(opMode,offOn), help="SET > Operating Mode & Data Mode for other VFO (Not MAIN/SUB). Must be used in conjunction with --vfo")
 parser.add_argument("--modInputDataMod", type=str, choices=dataMods, help="SET > Connectors > MOD Input > DATA MOD")
 parser.add_argument('--usbModLevel', type=int, choices=range(1,101), metavar='(1..100)', help="SET > Connectors > MOD Input > USB MOD Level")
@@ -67,6 +70,10 @@ else:
         radio.send_data_mode(pycom.OffOn[args.dataMode].value)
     if args.split:
         radio.send_split_mode(pycom.Split_DupMode[args.split].value)
+    if args.tone:
+        radio.send_tone(pycom.Tone[args.tone].value)
+    if args.toneFrequency:
+        radio.send_tone_frequency(args.toneFrequency)
     if args.modInputDataMod:
         radio.send_data_mod(pycom.ModInput_DataMod[args.modInputDataMod].value)
     if args.usbAfOutputLevel:
@@ -95,6 +102,8 @@ else:
     print(radio.read_split_mode())
     print("Satellite Mode: " + ', '.join(radio.read_satellite_mode()))
     print(radio.read_data_mod())
+    print(radio.read_tone())
+    print("Tone Frequency: " + str(radio.read_tone_frequency()))
     print("Connectors > USB AF/IF Output > AF Output Level: " + str(radio.read_af_output_level()) + "%")
     print("Connectors > MOD Input > USB MOD Level: " + str(radio.read_usb_mod_level()) + "%")
     print("Connectors > USB SEND/Keying > USB SEND: " + radio.read_usb_send().name)

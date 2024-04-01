@@ -20,6 +20,23 @@ class USB_Send(Enum):
     USB_B_DTR = 3
     USB_B_RTS = 4
 
+class Tone(Enum):
+    OFF = 0
+    TONE = 1
+    TSQL = 2
+    DTCS = 3
+    DTCS_T = 6
+    TONE_T_DTCS_R = 7
+    DTCS_T_TSQL_R = 8
+    TONE_T_TSQL_R = 9
+    
+TONE_FREQUENCIES = [
+    67, 69.3, 71.9, 74.4, 77, 79.7, 82.5, 85.4, 88.5, 91.5, 94.8, 97.4,
+    100, 103.5, 107.2, 110.9, 114.8, 118.8, 123, 127.3, 131.8, 136.5,
+    141.3, 146.2, 151.4, 156.7, 159.8, 162.2, 165.5, 167.9, 171.3, 173.8,
+    177.3, 179.9, 183.5, 186.2, 189.9, 192.8, 196.6, 199.5, 203.5, 206.5,
+    210.7, 218.1, 225.7, 229.1, 233.6, 241.8, 250.3, 254.1]
+
 class Split_DupMode(Enum):
     OFF = 0
     SPLIT_ON = 1
@@ -195,6 +212,25 @@ class PyCom:
     def read_split_mode(self):
         reply = self._send_command(b'\x0f')
         return(Split_DupMode(int.from_bytes(reply[5:6])))
+        
+    def send_tone(self, tone: int):
+        reply = self._send_command(b'\x16\x5d', tone.to_bytes())
+        return(reply)
+        
+    def read_tone(self):
+        reply = self._send_command(b'\x16\x5d')
+        return(Tone(int.from_bytes(reply[6:7])))
+        
+    def send_tone_frequency(self, tone: float):
+        tone = '00' + str(int(tone*10))
+        #print(bytes([int(tone[-3], 16),int(tone[-2] + tone[-1], 16)]))
+        reply = self._send_command(b'\x1b\x00', bytes([int(tone[-4] + tone[-3], 16),int(tone[-2] + tone[-1], 16)]))
+        return(reply)
+        
+    def read_tone_frequency(self):
+        reply = self._send_command(b'\x1b\x00')
+        #print(int(reply[7:9].hex()))
+        return(int(reply[7:9].hex())/10)
 
     def send_operating_mode(self, opMode: int):
         reply = self._send_command(b'\x06', opMode.to_bytes())
